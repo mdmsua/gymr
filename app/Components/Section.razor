@@ -1,0 +1,23 @@
+<section @attributes="AdditionalAttributes">
+    <h6 class="display-6" @onclick="Toggle"><i class="bi bi-@Icon"></i>&nbsp;@Header&nbsp;<small class="text-muted"><i class="bi bi-arrows-@iconClass"></i></small></h6>
+    @if (!collapsed)
+    {
+        @ChildContent
+    }
+</section>
+
+@code {
+    [Parameter] public string Header { get; set; } = string.Empty;
+
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    [Parameter] public string Icon { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object> AdditionalAttributes { get; set; }
+
+    private bool collapsed = true;
+
+    private string iconClass => collapsed ? "expand" : "collapse";
+
+    private void Toggle() => collapsed = !collapsed;
+}

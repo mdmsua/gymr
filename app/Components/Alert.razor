@@ -1,0 +1,26 @@
+<div class="alert alert-@Type.ToString().ToLowerInvariant() alert-dismissible fade show d-flex" role="alert" @attributes="Attributes">
+    @ChildContent
+    <button type="button" class="btn-close" aria-label="Close" @onclick="OnClose"></button>
+</div>
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    [Parameter] public AlertType Type { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object> Attributes { get; set; }
+
+    public enum AlertType
+    {
+        Primary,
+        Secondary,
+        Success,
+        Danger,
+        Warning,
+        Info,
+        Light,
+        Dark
+    }
+}

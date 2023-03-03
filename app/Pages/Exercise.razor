@@ -1,0 +1,137 @@
+@page "/workout/{id}/exercise"
+@attribute [Authorize]
+
+@inject IWorkoutRepository WorkoutRepository
+@inject IExerciseRepository ExerciseRepository
+@inject NavigationManager NavigationManager
+
+@using WorkoutModel = Models.Workout
+@using ExerciseModel = Models.Exercise
+@using Model = Models.WorkoutExercise
+
+<PageTitle>Exercise</PageTitle>
+
+@if (workout is null && !isLoading)
+{
+    <Alert Type="Alert.AlertType.Danger" OnClose="@(() => NavigationManager.NavigateTo("/workouts", replace: true))">
+    The workout with this identifier is not found
+</Alert>
+}
+
+@if (workout is not null)
+{
+    <header class="my-3">
+    <h6 class="display-6">Record exercise</h6>
+</header>
+    <section class="my-3">
+        <EditForm EditContext="@context" OnValidSubmit="Submit" class="row g-3 needs-validation">
+            <DataAnnotationsValidator />
+            <div class="col-12">
+                <label for="exercise" class="form-label">Exercise</label>
+                <InputText class="form-control" list="exercises" id="exercise" placeholder="Type to search..."
+                @bind-Value="exercise.Name" />
+                <ValidationMessage For="@(() => exercise.Name)" class="invalid-feedback" />
+                <datalist id="exercises">
+                    @foreach (var exercise in exercises)
+                    {
+                        <option value="@exercise.Name" />
+                    }
+                </datalist>
+            </div>
+            <div class="col-4">
+                <label for="weight" class="form-label">Weight</label>
+                <InputNumber class="form-control" id="weight" @bind-Value="exercise.Weight" />
+                <ValidationMessage For="@(() => exercise.Weight)" class="invalid-feedback" />
+            </div>
+            <div class="col-8">
+                <label for="weight" class="form-label">Sets</label>
+                <div class="input-group">
+                    @for (var i = 0; i < exercise.Sets.Count; i++)
+                    {
+                        var j = i;
+                        <input class="form-control" disabled readonly @bind="exercise.Sets[j]" type="text" />
+                    }
+                    <InputSelect class="form-select" @bind-Value="repetitions">
+                        @foreach (var option in Enumerable.Range(1, 20))
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </InputSelect>
+                </div>
+                <ValidationMessage For="@(() => exercise.Sets)" class="invalid-feedback" />
+            </div>
+            <div class="col-6">
+                <label for="feel" class="form-label">Feel</label>
+                <ul class="pagination">
+                    @foreach (var feel in feels)
+                    {
+                        <li class="page-item @(exercise.Feel == feel.Value ? "active" : string.Empty)">
+                            <a class="page-link" @onclick="(() => exercise.Feel = feel.Value)"><i
+                                    class="bi bi-@feel.Key"></i></a>
+                        </li>
+                    }
+                </ul>
+            </div>
+            <div class="col-6 align-self-end mb-3 d-flex">
+                <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-check-lg"></i>&nbsp;Save</button>
+            </div>
+        </EditForm>
+    </section>
+}
+
+@code {
+    [Parameter] public string id { get; set; } = null!;
+
+    private WorkoutModel? workout;
+
+    private EditContext? context;
+
+    private Model exercise = new();
+
+    private IList<ExerciseModel> exercises = new List<ExerciseModel>();
+
+    private bool dropdownExpanded = false;
+
+    private int repetitions
+    {
+        get => default;
+        set => exercise.Sets.Add(value);
+    }
+
+    private IDictionary<string, Feel> feels = new Dictionary<string, Feel>
+{
+{ "emoji-dizzy-fill", Feel.Bad },
+{ "emoji-smile-fill", Feel.Normal },
+{ "emoji-laughing-fill", Feel.Good },
+};
+    
+    private bool isLoading;
+
+    protected override void OnInitialized()
+    {
+        context = new(exercise);
+        context.SetFieldCssClassProvider(new InvalidFieldCssClassProvider());
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        var workoutTask = WorkoutRepository.GetById(id);
+        var exercisesTask = ExerciseRepository.SearchByName(null);
+        await Task.WhenAll(workoutTask, exercisesTask);
+        workout = await workoutTask;
+        exercises = await exercisesTask;
+        isLoading = false;
+    }
+
+    private async Task Submit()
+    {
+        var model = exercises.SingleOrDefault(e => string.Equals(e.Name, exercise.Name, StringComparison.Ordinal));
+        exercise.Equipment = model.Equipment;
+        exercise.Muscle = model.Muscle;
+        exercise.Id = model.Id;
+        workout?.Exercises.Add(exercise);
+        await WorkoutRepository.Update(workout);
+        NavigationManager.NavigateTo($"workout/{workout!.Id}", replace: true);
+    }
+}

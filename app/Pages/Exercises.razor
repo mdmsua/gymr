@@ -1,0 +1,176 @@
+@page "/exercises"
+@attribute [Authorize]
+
+@inject IExerciseRepository Repository
+
+@using Model = Models.Exercise
+
+<PageTitle>Exercises</PageTitle>
+
+<h6 class="py-3" @onclick="@(() => musclesSectionCollapsed = !musclesSectionCollapsed)">By muscle&nbsp;<small
+        class="text-muted"><i class="bi bi-arrows-@(musclesSectionCollapsed ? "expand" : "collapse")"></i></small></h6>
+@if (exercisesByMuscle?.Count > 0 && !musclesSectionCollapsed)
+{
+    <div class="row row-cols-2 row-cols-lg-6 g-3">
+    @foreach (var group in exercisesByMuscle)
+        {
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">@group.Key</h6>
+                        <h1 class="card-text text-center align-middle">@group.Value</h1>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<h6 class="py-3" @onclick="@(() => equipmentSectionCollapsed = !equipmentSectionCollapsed)">By equipment&nbsp;<small
+        class="text-muted"><i class="bi bi-arrows-@(equipmentSectionCollapsed ? "expand" : "collapse")"></i></small>
+</h6>
+@if (exercisesByEquipment?.Count > 0 && !equipmentSectionCollapsed)
+{
+    <div class="row row-cols-2 row-cols-lg-6 g-3 mb-3">
+    @foreach (var group in exercisesByEquipment)
+        {
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">@(group.Key == string.Empty ? "Body" : group.Key)</h6>
+                        <h1 class="card-text text-center align-middle">@group.Value</h1>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<h6 class="py-3" @onclick="@(() => formCollapsed = !formCollapsed)">Add new&nbsp;<small class="text-muted"><i
+            class="bi bi-arrows-@(formCollapsed ? "expand" : "collapse")"></i></small></h6>
+
+@if (!formCollapsed)
+{
+    <EditForm EditContext="@context" OnValidSubmit="Add" class="row g-3 needs-validation">
+    <DataAnnotationsValidator />
+    <div class="col-12 col-lg-7">
+        <label for="name" class="form-label">Name</label>
+        <InputText class="form-control" id="name" @bind-Value="exercise.Name" placeholder="Name" />
+        <ValidationMessage For="@(() => exercise.Name)" class="invalid-feedback" />
+    </div>
+    <div class="col-6 col-lg-2">
+        <label for="muscle" class="form-label">Muscle</label>
+        <InputSelect class="form-select" id="muscle" @bind-Value="exercise.Muscle">
+            @foreach (var muscle in Constants.Muscles)
+                {
+                    <option value="@muscle">@muscle</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-6 col-lg-2">
+            <label for="equipment" class="form-label">Equipment</label>
+            <InputSelect class="form-select" id="equipment" @bind-Value="exercise.Equipment">
+                <option value=""></option>
+                @foreach (var equipment in Constants.Equipment)
+                {
+                    <option value="@equipment">@equipment</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-12 col-lg-1 d-lg-flex d-grid">
+            <button class="btn btn-primary align-self-lg-end" type="submit"><i class="bi bi-plus-lg"></i>&nbsp;Add</button>
+        </div>
+    </EditForm>
+
+    @if (errorMessage is not null)
+    {
+        <div class="my-3">
+    <Alert Type="Alert.AlertType.Danger" OnClose="@(() => errorMessage = default)">
+        <i class="bi bi-exclamation-triangle-fill"></i>&nbsp;
+        <div>@errorMessage</div>
+    </Alert>
+</div>
+    }
+}
+
+<div class="input-group my-3">
+  <input type="text" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon" @bind="searchTerm">
+  <button class="btn btn-outline-secondary" type="button" id="search-addon" @onclick="Search"><i class="bi bi-search"></i></button>
+</div>
+
+@if (exercises?.Count > 0)
+{
+    <div class="list-group my-3">
+    @foreach (var exercise in exercises)
+    {
+        <NavLink href="#" class="list-group-item list-group-item-action">@exercise</NavLink>
+    }
+</div>
+}
+
+@code {
+    private IDictionary<string, int>? exercisesByMuscle;
+
+    private IDictionary<string, int>? exercisesByEquipment;
+
+    private bool musclesSectionCollapsed = true;
+
+    private bool equipmentSectionCollapsed = true;
+
+    private bool formCollapsed = true;
+
+    private Model exercise = new();
+
+    private IList<Model>? exercises;
+
+    private EditContext? context;
+
+    private string? errorMessage;
+
+    private string? searchTerm;
+
+    private CancellationTokenSource? cancellationTokenSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        context = new(exercise);
+        context.SetFieldCssClassProvider(new InvalidFieldCssClassProvider());
+        await LoadData();
+    }
+
+    private async Task Add()
+    {
+        try
+        {
+            await Repository.Add(exercise!);
+            exercise = new();
+            formCollapsed = true;
+            await LoadData();
+        }
+        catch (ExerciseAlreadyExistsException exception)
+        {
+            errorMessage = exception.Message;
+        }
+    }
+
+    private void ToggleForm()
+    {
+        formCollapsed = !formCollapsed;
+    }
+
+    private async Task LoadData()
+    {
+        var exercisesByMuscleTask = Repository.GetGroupedByMuscle();
+        var exercisesByEquipmentTask = Repository.GetGroupedByEquipment();
+        await Task.WhenAll(exercisesByEquipmentTask, exercisesByMuscleTask);
+        exercisesByEquipment = await exercisesByEquipmentTask;
+        exercisesByMuscle = await exercisesByMuscleTask;
+    }
+
+    private async Task Search()
+    {
+        cancellationTokenSource?.Cancel();
+        cancellationTokenSource = new();
+        exercises = await Repository.SearchByName(searchTerm!, cancellationTokenSource.Token);
+    }
+}

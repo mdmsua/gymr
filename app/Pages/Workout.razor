@@ -1,0 +1,91 @@
+@page "/workout/{id}"
+@attribute [Authorize]
+
+@inject IWorkoutRepository Repository
+@inject NavigationManager NavigationManager
+
+@using Model = Models.Workout
+
+<PageTitle>Workout</PageTitle>
+
+@if (workout is null && !isLoading)
+{
+    <Alert Type="Alert.AlertType.Danger" OnClose="@(() => NavigationManager.NavigateTo("/", replace: true))">
+    The workout with this identifier is not found
+</Alert>
+}
+
+@if (workout is not null)
+{
+    <header class="my-3">
+    @if (workout.Finish is null)
+        {
+            <h6 class="display-6">Current workout</h6>
+            <p class="lead">Started at @workout.StartAsTimeOnly.ToShortTimeString()</p>
+        }
+        else
+        {
+            <h6 class="display-6">Workout on @workout.DateAsDateOnly.ToShortDateString()</h6>
+            <p class="lead">@workout.StartAsTimeOnly.ToShortTimeString() .. @workout.FinishAsTimeOnly!.Value.ToShortTimeString()
+    </p>
+        }
+    </header>
+    <section class="my-3">
+    <ul class="list-group">
+        @foreach (var exercise in workout.Exercises)
+            {
+                <li class="list-group-item">
+                    <div class="text-center">@exercise.ToString()</div>
+                    <div class="text-center my-1">
+                        @(exercise.Weight.HasValue ? exercise.Weight!.Value.ToString("F2") : string.Empty)
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        @foreach (var set in exercise.Sets)
+                        {
+                            <span class="badge bg-primary rounded-circle">@set</span>
+                        }
+                    </div>
+                </li>
+            }
+            @if (workout.Finish is null)
+            {
+                <li class="list-group-item d-grid gap-2">
+                    <button class="btn btn-primary" @onclick="RecordExercise">
+                        <i class="bi bi-journal-plus"></i>&nbsp;Record exercise
+                    </button>
+                    <button class="btn btn-danger" @onclick="FinishWorkout">
+                        <i class="bi bi-stop-fill"></i>&nbsp;Finish workout
+                    </button>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter] public string id { get; set; } = null!;
+
+    [CascadingParameter] private Task<AuthenticationState>? authenticationState { get; set; }
+
+    private Model? workout;
+
+    private bool isLoading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        workout = await Repository.GetById(id);
+        isLoading = false;
+    }
+
+    private void RecordExercise()
+    {
+        NavigationManager.NavigateTo($"workout/{workout!.Id}/exercise");
+    }
+
+    private async Task FinishWorkout()
+    {
+        workout!.Finish = DateTime.Now.Ticks;
+        await Repository.Update(workout);
+    }
+}

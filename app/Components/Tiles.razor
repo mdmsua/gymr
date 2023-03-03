@@ -1,0 +1,20 @@
+@if (Data?.Count > 0)
+{
+    <div class="row row-cols-2 row-cols-lg-4 g-3">
+    @foreach (var tile in Data)
+        {
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">@tile.Key</h6>
+                        <h3 class="card-text text-center align-middle">@tile.Value</h3>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyDictionary<string, string>? Data { get; set; }
+}

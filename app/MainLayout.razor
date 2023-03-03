@@ -1,0 +1,61 @@
+﻿@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using User = Models.User
+
+<nav class="navbar navbar-expand-sm bg-body-tertiary">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <i class="bi bi-globe"></i>
+        </a>
+        <button class="navbar-toggler" type="button" @onclick="ToggleNavBar" aria-controls="navbar"
+            aria-expanded="@(!collapsed)" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        @if (authenticated)
+        {
+            <div class="@NavBarCssClass navbar-collapse" id="navbar" @onclick="ToggleNavBar">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <NavLink class="nav-link" ActiveClass="active" Match="NavLinkMatch.Prefix" href="/exercises"><i
+                                class="bi bi-universal-access"></i>&nbsp;Exercises</NavLink>
+                    </li>
+                </ul>
+                <span class="navbar-text">
+                    @if (user is not null)
+                    {
+                        <i class="bi bi-@user.Provider"></i><text>&nbsp;</text>@user.Name<text>&nbsp;</text>
+                    }
+                    <NavLink href="/logout" class="text-decoration-none">
+                        <i class="bi bi-box-arrow-right"></i>&nbsp;Logout
+                    </NavLink>
+                </span>
+            </div>
+        }
+    </div>
+</nav>
+<main class="container">@Body</main>
+
+@code {
+    private bool collapsed = true;
+
+    private string? NavBarCssClass => collapsed ? "collapse" : null;
+
+    private bool authenticated = false;
+
+    private User? user;
+
+    private void ToggleNavBar()
+    {
+        collapsed = !collapsed;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        authenticated = authenticationState.User?.Identity?.IsAuthenticated ?? false;
+        if (authenticationState.User is not null)
+        {
+            user = User.FromClaims(authenticationState.User.Claims);
+        }
+    }
+}

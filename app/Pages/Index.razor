@@ -1,0 +1,107 @@
+﻿@page "/"
+@attribute [Authorize]
+
+@inject IWorkoutRepository Repository
+
+@using Model = Models.Workout
+@using User = Models.User
+
+<PageTitle>Workouts</PageTitle>
+
+<Section Header="Dashboard" Icon="speedometer" class="my-3">
+    <Tiles Data="tiles" />
+</Section>
+
+@if (workouts?.Count > 0)
+{
+    <Section Header="Recent" Icon="clock-history" class="my-3">
+    <div class="row row-cols row-cols-lg-4 g-3">
+        @foreach (var workout in workouts)
+            {
+                <div class="col">
+                    <WorkoutSummary Workout="workout" />
+                </div>
+            }
+        </div>
+        <div class="col text-center mt-2">
+            <NavLink class="text-decoration-none" href="/workouts">View all</NavLink>
+        </div>
+    </Section>
+}
+
+<section class="my-3">
+    @if (workout is null)
+    {
+        <div class="d-grid">
+            <button @onclick="Start" class="btn btn-primary btn-lg" role="button"><i
+                    class="bi bi-play-fill"></i>&nbsp;Start</button>
+        </div>
+    }
+    else
+    {
+        <WorkoutSummary Workout="workout" OnStop="Stop" />
+    }
+</section>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? authenticationState { get; set; }
+
+    private IReadOnlyDictionary<string, string>? tiles;
+
+    private IReadOnlyList<Model>? workouts;
+
+    private Model? workout;
+
+    private string? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (authenticationState is not null)
+        {
+            IEnumerable<Claim>? claims = (await authenticationState).User?.Claims;
+            user = User.FromClaims(claims)?.Id;
+            await Load();
+        }
+    }
+
+    private async Task Start()
+    {
+        if (user is not null)
+        {
+            workout = await Repository.Add(new() { Date = DateTime.Today.Ticks, Start = DateTime.Now.Ticks, User = user });
+        }
+    }
+
+    private async Task Stop()
+    {
+        workout!.Finish = DateTime.Now.Ticks;
+        await Repository.Update(workout);
+        workout = null;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        if (user is not null)
+        {
+            var countTask = Repository.GetCount(user);
+            var totalDurationTask = Repository.GetTotalDuration(user);
+            var averageDurationTask = Repository.GetAverageDuration(user);
+            var totalWeightTask = Repository.GetTotalWeight(user);
+            var currentWorkoutTask = Repository.GetCurrent(user);
+            var historyTask = Repository.Get(user, limit: 3);
+
+            await Task.WhenAll(countTask, totalDurationTask, totalWeightTask, averageDurationTask, historyTask);
+
+            tiles = new Dictionary<string, string>
+{
+{ "Total count", (await countTask).ToString() },
+{ "Total weight", (await totalWeightTask).ToString("F2") },
+{ "Total duration", (await totalDurationTask).ToString(@"d\.h\:mm\:ss") },
+{ "Avg. duration", (await averageDurationTask).ToString(@"h\:mm\:ss")},
+};
+            workout = await currentWorkoutTask;
+            workouts = await historyTask;
+        }
+    }
+}

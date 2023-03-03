@@ -1,0 +1,48 @@
+@inject NavigationManager NavigationManager
+
+@if (Workout is not null)
+{
+    <div class="card text-bg-@(Workout.IsCurrent ? "primary" : "light") text-center">
+    <h6 class="card-header" @onclick="NavigateTo">
+        @if (Workout.IsCurrent)
+            {
+                <text>Current workout</text>
+            }
+            else
+            {
+                <text>@Workout.DateAsDateOnly.ToShortDateString()</text>
+            }
+        </h6>
+        <div class="card-body" @onclick="NavigateTo">
+            <div class="card-text d-flex justify-content-between align-items-center">
+                <div class=""><i class="bi bi-clock"></i>&nbsp;@(Workout.IsCurrent ?
+                Workout.StartAsTimeOnly.ToShortTimeString() : Workout.DurationAsHumanReadable)</div>
+                <div class="card-text">@exercises&nbsp;<small>@(exercises == 1 ? "exercise" :
+                    "exercises")</small></div>
+                <div class="card-text">@sets&nbsp;<small>@(sets == 1 ? "set" :
+                    "sets")</small></div>
+            </div>
+        </div>
+        @if (Workout.IsCurrent)
+        {
+            <div class="card-footer">
+                <div class="d-grid">
+                    <button @onclick="OnStop" class="btn btn-danger" role="button"><i
+                            class="bi bi-stop-fill"></i>&nbsp;Stop</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public Workout? Workout { get; set; }
+
+    [Parameter] public EventCallback OnStop { get; set; }
+
+    private void NavigateTo() => NavigationManager.NavigateTo($"/workout/{Workout.Id}");
+
+    private int exercises => Workout.Exercises.Count;
+
+    private int sets => Workout.Exercises.Sum(e => e.Sets.Count);
+}

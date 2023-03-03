@@ -1,0 +1,34 @@
+﻿@inject NavigationManager NavigationManager
+@inject GitHubClient GitHubClient
+@inject IOptions<GitHubOptions> GitHubOptions
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <div class="row">
+                        <div class="col-lg-4 offset-lg-4 col-sm-6 offset-sm-3 col-12">
+                            <div class="d-grid gap-2 my-3">
+                                <button class="btn btn-outline-primary" type="button" @onclick="GitHub"><i
+                                        class="bi bi-github"></i>&nbsp;Continue with GitHub</button>
+                            </div>
+                        </div>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+@code {
+    private void GitHub() =>
+    NavigationManager.NavigateTo(GitHubClient.Oauth.GetGitHubLoginUrl(new(GitHubOptions.Value.ClientId)).AbsoluteUri);
+}

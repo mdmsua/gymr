@@ -1,0 +1,70 @@
+@page "/workouts"
+@attribute [Authorize]
+
+@inject IWorkoutRepository Repository
+
+@using Model = Models.Workout
+@using User = Models.User
+
+<PageTitle>Workouts</PageTitle>
+
+<h6 class="display-6">@total workouts</h6>
+
+@if (workouts?.Count > 0)
+{
+    <div class="row row-cols row-cols-lg-4 g-3">
+    @foreach (var workout in workouts)
+        {
+            <div class="col">
+                <WorkoutSummary Workout="workout" />
+            </div>
+        }
+    </div>
+    @if (workouts.Count < total)
+    {
+        <div class="col text-center mt-2">
+    <button class="btn btn-link text-decoration-none" @onclick="LoadMore">Load more</button>
+</div>
+    }
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? authenticationState { get; set; }
+
+    private List<Model>? workouts;
+
+    private long total;
+
+    private int skip;
+
+    private string? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (authenticationState is not null)
+        {
+            IEnumerable<Claim>? claims = (await authenticationState).User?.Claims;
+            user = User.FromClaims(claims)?.Id;
+            if (user is not null)
+            {
+                var workoutTask = Repository.Get(user, limit: 4, skip: skip);
+                var totalTask = Repository.GetCount(user);
+                await Task.WhenAll(workoutTask, totalTask);
+                workouts = new(await workoutTask);
+                total = await totalTask;
+                skip += workouts.Count;
+            }
+        }
+    }
+
+    private async Task LoadMore()
+    {
+        if (user is not null)
+        {
+            var data = await Repository.Get(user, limit: 4, skip: skip);
+            workouts?.AddRange(data);
+            skip += data.Count;
+        }
+    }
+}
+
